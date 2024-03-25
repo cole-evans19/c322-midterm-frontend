@@ -3,9 +3,154 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
+  <title>Quiz</title>
+  <link rel="stylesheet" href="general.css">
+  <link rel="stylesheet" href="cards.css">
+  <link rel="stylesheet" href="quiz.css">
+  <link rel="stylesheet" href="navbar.css">
 </head>
 <body>
+ 
+  <ul class="topnav" style="display: none;">
+    <li><a  href="index.html">Home</a></li>
+    <li><a  href="add-question.html">Add questions</a></li>
+    <li><a href="make-a-quiz.html">Create a quiz</a></li>
+    <li><a class="active" href="take-a-quiz.html">Take a quiz</a></li>
+    <li class="right"><a href="#about">About</a></li>
+</ul>
+
+  <div class="question">
+    <div id="questionCard" class="cards"></div>
+    <button id="prevButton" disabled>Previous</button>
+    <button id="nextButton">Next</button>
+    <button id="submitButton" style="display: none;">Submit Quiz</button>
+  </div>
+
+  <script>
+    let host = "http://localhost:8080";
+    let questions = [];
+    let currentQuestionIndex = 0;
+    let quizQuestions = [];
+    let quizId;
+
   
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      quizId = urlParams.get('quizId'); 
+      displayQuestion(quizId); 
+    });
+
+    async function getAllQuestions() {
+      let response = await fetch(host + "/questions");
+      let result = await response.json();
+      return result;
+    }
+
+    async function getAllQuizzes() {
+      let response = await fetch(host + "/quizzes");
+      let result = await response.json();
+      return result;
+    }
+
+    async function displayQuestion(quizId) {
+      let response = await fetch(host + "/quizzes/" + quizId);
+      let quiz = await response.json();
+      questions = await getAllQuestions(); 
+      quizQuestions = quiz.questionIds;
+
+      if (questions.length === 0) {
+        questions = await getAllQuestions();
+      }
+
+      if (quizQuestions.length === 0) {
+        let quizzes = await getAllQuizzes();
+        quizQuestions = quizzes[currentQuestionIndex].questionIds;
+      }
+
+      let questionCardDiv = document.getElementById("questionCard");
+      questionCardDiv.innerHTML = "";
+
+      let currentQuestion = questions.find(question => question.id === quizQuestions[currentQuestionIndex]);
+
+      let div = document.createElement("div");
+      div.className = "card";
+
+      let innerHtml = `
+        <img src="http://localhost:8080/questions/${currentQuestion.id}/image" alt="question" style="width:100%">
+        <div class="container">
+          <h4><b>${currentQuestion.id}</b></h4> 
+          <p>${currentQuestion.description}</p>
+          <form>
+            <input type="radio" id="q${currentQuestion.id}ptionA" name="q2Answer" value="A">
+            <label for="q${currentQuestion.id}ptionA">${currentQuestion.choices[0]}</label><br>
+
+            <input type="radio" id="q${currentQuestion.id}ptionB" name="q2Answer" value="B">
+            <label for="q${currentQuestion.id}ptionB">${currentQuestion.choices[1]}</label><br>
+
+            <input type="radio" id="q${currentQuestion.id}ptionC" name="q2Answer" value="C">
+            <label for="q${currentQuestion.id}ptionC">${currentQuestion.choices[2]}</label><br>       
+          </form> 
+        </div>
+      `;
+      div.innerHTML = innerHtml;
+      questionCardDiv.appendChild(div);
+
+      updateButtonVisibility();
+    }
+
+    function updateButtonVisibility() {
+      let prevButton = document.getElementById("prevButton");
+      let nextButton = document.getElementById("nextButton");
+      let submitButton = document.getElementById("submitButton");
+
+      prevButton.disabled = currentQuestionIndex === 0;
+      nextButton.style.display = currentQuestionIndex < quizQuestions.length - 1 ? "block" : "none";
+      submitButton.style.display = currentQuestionIndex === quizQuestions.length - 1 ? "block" : "none";
+    }
+
+    document.getElementById("prevButton").addEventListener("click", function() {
+      currentQuestionIndex--;
+      displayQuestion(quizId);
+    });
+
+    document.getElementById("nextButton").addEventListener("click", function() {
+      currentQuestionIndex++;
+      displayQuestion(quizId);
+    });
+
+    document.getElementById("submitButton").addEventListener("click", async function() {
+    let quizName = ""; 
+
+    try {
+        let response = await fetch(`${host}/quizzes/${quizId}`);
+        if (response.ok) {
+            let quizDetails = await response.json();
+            quizName = quizDetails.title;
+        } else {
+            console.error("Failed to fetch quiz details:", response.status);
+        }
+    } catch (error) {
+        console.error("Error fetching quiz details:", error);
+    }
+
+    let score = "3 out of 4";
+    document.getElementById("questionCard").style.display = "none";
+
+    document.getElementById("submitButton").style.display = "none";
+    document.getElementById("prevButton").style.display = "none";
+
+    document.querySelector(".topnav").style.display = "block";
+
+    let completionMessage = document.createElement("div");
+    completionMessage.innerHTML = `
+        <p>You completed ${quizName}</p>
+        <p>You scored ${score}.</p>
+    `;
+    document.body.appendChild(completionMessage);
+});
+
+
+  </script>
 </body>
 </html>
